@@ -2,41 +2,41 @@ import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { CONFIG } from './setting';
 import { formatSummaryReport } from './summary';
 import { targetUrls } from './url';
 
 const ffmpegPath = ffmpegInstaller.path;
 
-const outputFolder = path.join(__dirname, 'download');
-if (!fs.existsSync(outputFolder)) {
-    fs.mkdirSync(outputFolder, { recursive: true });
+if (!fs.existsSync(CONFIG.outputFolder)) {
+    fs.mkdirSync(CONFIG.outputFolder, { recursive: true });
 }
 
-/**
- * Mengunduh audio AAC 128kbps dengan log berjalan real-time
- */
 function downloadAac(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
-        const outputTemplate = path.join(outputFolder, '%(title)s.%(ext)s');
+        const outputPath = path.join(CONFIG.outputFolder, CONFIG.outputTemplate);
 
         const args = [
             '--ffmpeg-location', ffmpegPath,
             '-x',
-            '--audio-format', 'aac',
-            '--audio-quality', '128k',
-            '-o', outputTemplate,
+            '--audio-format', CONFIG.audioFormat,
+            '--audio-quality', CONFIG.audioQuality,
+            '--no-overwrites', // <- yt-dlp akan otomatis mengabaikan (skip) jika file keluaran sudah ada
+            '-o', outputPath,
             url,
         ];
 
-        console.log(`\n========================================`);
         console.log(`[START] Memproses URL: ${url}`);
-        console.log(`[FFMPEG] Path: ${ffmpegPath}`);
-        console.log(`========================================\n`);
 
-        const child = spawn('yt-dlp', args);
+        const child = spawn(CONFIG.ytDlpBinary, args);
 
         child.stdout.on('data', (data: Buffer) => {
-            process.stdout.write(data.toString());
+            const output = data.toString();
+            // Opsional: cetak log khusus jika yt-dlp mendeteksi file sudah ada
+            if (output.includes('has already been downloaded')) {
+                console.log(`[SKIP] File sudah ada untuk URL: ${url}`);
+            }
+            process.stdout.write(output);
         });
 
         child.stderr.on('data', (data: Buffer) => {
@@ -45,20 +45,30 @@ function downloadAac(url: string): Promise<void> {
 
         child.on('close', (code: number) => {
             if (code === 0) {
-                console.log(`\n[SELESAI] Sukses mengunduh: ${url}`);
+                console.log(`[SELESAI] Sukses/Dilewati: ${url}`);
                 resolve();
             } else {
-                console.error(`\n[ERROR] Gagal mengunduh URL: ${url} (Exit Code: ${code})`);
+                console.error(`[ERROR] Gagal: ${url} (Code: ${code})`);
                 reject(new Error(`yt-dlp exited with code ${code}`));
             }
         });
 
         child.on('error', (err: Error) => {
-            console.error(`[ERROR] Terjadi kesalahan sistem:`, err.message);
+            console.error(`[ERROR] Sistem error:`, err.message);
             reject(err);
         });
     });
 }
+
+function chunkArray<T>(array: T[], size: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += size) {
+        chunks.push(array.slice(i, i + size));
+    }
+    return chunks;
+}
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function run() {
     if (targetUrls.length === 0) {
@@ -70,20 +80,36 @@ async function run() {
     let successCount = 0;
     let failedCount = 0;
 
-    for (const url of targetUrls) {
-        try {
-            await downloadAac(url);
-            successCount++;
-        } catch (error) {
-            failedCount++;
-            console.error(`Lanjut ke URL berikutnya...`);
+    const urlBatches = chunkArray(targetUrls, CONFIG.maxConcurrentDownloads);
+
+    console.log(`Total URL: ${targetUrls.length}`);
+    console.log(`Mode Sesi: Maksimal ${CONFIG.maxConcurrentDownloads} unduhan paralel per sesi (${urlBatches.length} sesi)\n`);
+
+    for (let i = 0; i < urlBatches.length; i++) {
+        const batch = urlBatches[i];
+        console.log(`\n========================================`);
+        console.log(`>>> MENJALANKAN SESI ${i + 1} / ${urlBatches.length} (${batch.length} URL) <<<`);
+        console.log(`========================================\n`);
+
+        const results = await Promise.allSettled(batch.map((url) => downloadAac(url)));
+
+        results.forEach((res) => {
+            if (res.status === 'fulfilled') {
+                successCount++;
+            } else {
+                failedCount++;
+            }
+        });
+
+        if (i < urlBatches.length - 1 && CONFIG.delayBetweenBatchesMs > 0) {
+            console.log(`\nWaiting ${CONFIG.delayBetweenBatchesMs}ms sebelum sesi berikutnya...`);
+            await delay(CONFIG.delayBetweenBatchesMs);
         }
     }
 
-    // Tampilkan ringkasan di akhir proses
     const summaryText = formatSummaryReport(
         {
-            title: 'Pengunduhan Audio AAC',
+            title: `Pengunduhan Audio ${CONFIG.audioFormat.toUpperCase()}`,
             totalUrls: targetUrls.length,
             successCount,
             failedCount,
