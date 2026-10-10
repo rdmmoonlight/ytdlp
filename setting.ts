@@ -11,13 +11,6 @@ export interface DownloaderConfig {
     audioQuality: string;
     /** Nama executable yt-dlp */
     ytDlpBinary: string;
-    /** 
-     * Jumlah maksimal URL yang diunduh secara bersamaan per sesi/batch.
-     * Contoh: 1 = sekuensial (satu per satu), 3 = 3 download sekaligus secara paralel.
-     */
-    maxConcurrentDownloads: number;
-    /** Delay/jeda antar sesi batch dalam milidetik (contoh: 1000 = 1 detik) */
-    delayBetweenBatchesMs: number;
 }
 
 export const CONFIG: DownloaderConfig = {
@@ -26,6 +19,4 @@ export const CONFIG: DownloaderConfig = {
     audioFormat: 'aac',
     audioQuality: '128k',
     ytDlpBinary: 'yt-dlp',
-    maxConcurrentDownloads: 300, // Ubah angka ini untuk mengatur berapa unduhan per sesi/paralel
-    delayBetweenBatchesMs: 1000, // Jeda antar batch (ms)
 };
