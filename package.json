@@ -18,6 +18,7 @@
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@rspack/cli": "^2.3.0",
     "@rspack/core": "^2.3.0",
+    "@rspack/dev-server": "^2.2.2",
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

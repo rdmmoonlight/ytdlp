@@ -1,14 +1,110 @@
-<!DOCTYPE html>
-<html lang="en">
-
+<!doctype html>
+<html lang="id">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>YTDLP App</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pengunduh Audio</title>
+<style>
+  :root {
+    --bg: #f6f7f5; --panel: #ffffff; --text: #1d2321; --muted: #5b6662;
+    --line: #d5dbd8; --accent: #1f6f5c; --accent-text: #ffffff;
+    --log-bg: #101614; --log-text: #cfe3da; --error: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121715; --panel: #1a211e; --text: #e6ece9; --muted: #98a5a0;
+      --line: #2b3531; --accent: #4fb99f; --accent-text: #08140f;
+      --log-bg: #0a0e0d; --log-text: #cfe3da; --error: #f2b8b5;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px; background: var(--bg); color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; display: grid; gap: 16px; }
+  h1 { margin: 0; font-size: 1.5rem; }
+  label { font-weight: 600; }
+  .hint { margin: 2px 0 8px; color: var(--muted); font-size: .9rem; }
+  textarea, pre {
+    width: 100%; border: 1px solid var(--line); border-radius: 6px;
+    font: 13px/1.5 ui-monospace, Consolas, Menlo, monospace;
+  }
+  textarea {
+    height: 180px; padding: 10px; resize: vertical;
+    background: var(--panel); color: var(--text);
+  }
+  .bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  button {
+    padding: 9px 20px; border: 0; border-radius: 6px; cursor: pointer;
+    background: var(--accent); color: var(--accent-text); font: inherit; font-weight: 600;
+  }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #state { color: var(--muted); }
+  #state.error { color: var(--error); }
+  pre {
+    height: 340px; margin: 0; padding: 10px; overflow: auto;
+    background: var(--log-bg); color: var(--log-text); white-space: pre-wrap; word-break: break-all;
+  }
+</style>
 </head>
-
 <body>
-    <div id="root"></div>
-</body>
+<main>
+  <h1>Pengunduh Audio</h1>
 
+  <section>
+    <label for="urls">Daftar URL playlist</label>
+    <p class="hint">Satu URL per baris. Hasil tersimpan di folder <code>download</code>.</p>
+    <textarea id="urls" spellcheck="false"></textarea>
+  </section>
+
+  <div class="bar">
+    <button id="start" type="button">Mulai unduh</button>
+    <span id="state" role="status">Menghubungkan…</span>
+  </div>
+
+  <section>
+    <label for="log">Log</label>
+    <pre id="log" tabindex="0"></pre>
+  </section>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const urls = $('urls'), start = $('start'), log = $('log'), state = $('state');
+  const MAX_LOG = 200000;
+
+  function setState(text, isError = false) {
+    state.textContent = text;
+    state.classList.toggle('error', isError);
+  }
+
+  fetch('/api/urls').then((r) => r.json()).then((list) => { urls.value = list.join('\n'); });
+
+  const events = new EventSource('/api/events');
+  events.onopen = () => { log.textContent = ''; }; // server mengirim ulang log saat tersambung
+  events.addEventListener('reset', () => { log.textContent = ''; });
+  events.addEventListener('log', (e) => {
+    log.textContent = (log.textContent + JSON.parse(e.data)).slice(-MAX_LOG);
+    log.scrollTop = log.scrollHeight;
+  });
+  events.addEventListener('state', (e) => {
+    const running = JSON.parse(e.data) === 'running';
+    start.disabled = running;
+    setState(running ? 'Sedang berjalan…' : 'Siap');
+  });
+  events.onerror = () => setState('Koneksi terputus, mencoba lagi…', true);
+
+  start.addEventListener('click', async () => {
+    const list = urls.value.split('\n').map((u) => u.trim()).filter(Boolean);
+    const res = await fetch('/api/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ urls: list }),
+    });
+    if (!res.ok) setState((await res.json()).error, true);
+  });
+</script>
+</body>
 </html>

@@ -32,10 +32,13 @@ importers:
         version: 1.1.0
       '@rspack/cli':
         specifier: ^2.3.0
-        version: 2.3.0(@rspack/core@2.3.0)
+        version: 2.3.0(@rspack/core@2.3.0)(@rspack/dev-server@2.2.2(@rspack/core@2.3.0))
       '@rspack/core':
         specifier: ^2.3.0
         version: 2.3.0
+      '@rspack/dev-server':
+        specifier: ^2.2.2
+        version: 2.2.2(@rspack/core@2.3.0)
       '@types/node':
         specifier: ^26.6.4
         version: 26.6.4
@@ -421,6 +424,25 @@ packages:
       '@module-federation/runtime-tools':
         optional: true
       '@swc/helpers':
+        optional: true
+
+  '@rspack/dev-middleware@2.0.6':
+    resolution: {integrity: sha512-Rcx7dlDZQ9ddUJGuutFvnSeAKl+ZOc1fnC3htibs8yew3zMD9VgvSUe4MAwEn94Gb390l5heA+s/j5KhoSG5MQ==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    peerDependencies:
+      '@rspack/core': ^2.0.0
+    peerDependenciesMeta:
+      '@rspack/core':
+        optional: true
+
+  '@rspack/dev-server@2.2.2':
+    resolution: {integrity: sha512-pK4V9YJW8dkfjy6WYJ2T6DrPkcIn2yjA1HiaU146141j8UCxHok5lsplyqudLzerOhvwqMrNFmnsuXLnFbfn4Q==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    peerDependencies:
+      '@rspack/core': ^2.0.0
+      selfsigned: ^5.0.0
+    peerDependenciesMeta:
+      selfsigned:
         optional: true
 
   '@tybys/wasm-util@0.10.4':
@@ -1272,13 +1294,24 @@ snapshots:
       '@rspack/binding-win32-ia32-msvc': 2.3.0
       '@rspack/binding-win32-x64-msvc': 2.3.0
 
-  '@rspack/cli@2.3.0(@rspack/core@2.3.0)':
+  '@rspack/cli@2.3.0(@rspack/core@2.3.0)(@rspack/dev-server@2.2.2(@rspack/core@2.3.0))':
     dependencies:
       '@rspack/core': 2.3.0
+    optionalDependencies:
+      '@rspack/dev-server': 2.2.2(@rspack/core@2.3.0)
 
   '@rspack/core@2.3.0':
     dependencies:
       '@rspack/binding': 2.3.0
+
+  '@rspack/dev-middleware@2.0.6(@rspack/core@2.3.0)':
+    optionalDependencies:
+      '@rspack/core': 2.3.0
+
+  '@rspack/dev-server@2.2.2(@rspack/core@2.3.0)':
+    dependencies:
+      '@rspack/core': 2.3.0
+      '@rspack/dev-middleware': 2.0.6(@rspack/core@2.3.0)
 
   '@tybys/wasm-util@0.10.4':
     dependencies:
