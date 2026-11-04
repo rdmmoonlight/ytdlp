@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "rspack serve",
-    "build": "rspack build",
+    "build:web": "rspack build",
+    "cap:sync": "cap sync android",
+    "build": "rspack build && cap sync android"
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
