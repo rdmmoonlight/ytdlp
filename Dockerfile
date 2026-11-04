@@ -1,20 +1,23 @@
-FROM node:20-alpine AS frontend-builder
+# Stage 1: Build Frontend (Menggunakan Node.js 24)
+FROM node:24-alpine AS frontend-builder
 WORKDIR /app
+
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy semua file manifest & config pnpm (termasuk .npmrc jika ada)
+# Copy manifest & config
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml* .npmrc* ./
 
-# Gunakan flag --config.ignore-scripts=true agar pnpm tidak mengeksekusi/memvalidasi build script
+# Install dependencies tanpa running build scripts yang diblokir
 RUN pnpm install --frozen-lockfile --config.ignore-scripts=true
 
 COPY . .
-RUN pnpm run build
+
+# Jalankan build khusus web (tanpa cap sync) untuk deployment server
+RUN pnpm run build:web
 
 # Stage 2: Production Environment (PHP + Nginx + Python/yt-dlp + Supervisord)
 FROM php:8.3-fpm-alpine
 
-# Install Supervisor, Nginx, Python3, FFmpeg, dan yt-dlp
 RUN apk add --no-cache \
     supervisor \
     nginx \
@@ -27,18 +30,16 @@ RUN apk add --no-cache \
 
 WORKDIR /var/www/html
 
-# Copy hasil build frontend ke dist/
+# Copy hasil build frontend dari stage 1 ke dist
 COPY --from=frontend-builder /app/dist ./dist
 
-# Copy backend Laravel & Konfigurasi Nginx & Supervisord
+# Copy backend Laravel & Konfigurasi
 COPY backend ./backend
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Setup permission storage & cache Laravel
 RUN chown -R www-data:www-data /var/www/html/backend/storage /var/www/html/backend/bootstrap/cache
 
 EXPOSE 80
 
-# Jalankan Supervisord sebagai PID 1
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
