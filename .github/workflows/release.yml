@@ -2,6 +2,7 @@ name: Build and Release Android APK
 
 on:
   workflow_dispatch: {}
+  push:
     tags:
       - 'v*' # Trigger otomatis saat membuat tag versi, contoh: v1.0.0
 
