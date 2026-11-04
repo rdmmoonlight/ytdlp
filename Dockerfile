@@ -7,14 +7,14 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # Copy manifest & config
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml* .npmrc* ./
 
-# Install dependencies frontend tanpa running build scripts
+# Install dependencies frontend
 RUN pnpm install --frozen-lockfile --config.ignore-scripts=true
 
 COPY . .
 RUN pnpm run build:web
 
-# Stage 2: Production Environment (PHP + Nginx + Python/yt-dlp + Composer + Supervisord)
-FROM php:8.3-fpm-alpine
+# Stage 2: Production Environment (PHP 8.4 + Nginx + Python/yt-dlp + Composer + Supervisord)
+FROM php:8.4-fpm-alpine
 
 # Install tools, Composer, Nginx, Python3, FFmpeg, dan yt-dlp
 RUN apk add --no-cache \
