@@ -1,9 +1,13 @@
-# Stage 1: Build Frontend (Rspack)
 FROM node:20-alpine AS frontend-builder
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@latest --activate
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
+
+# Copy semua file manifest & config pnpm (termasuk .npmrc jika ada)
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml* .npmrc* ./
+
+# Gunakan flag --config.ignore-scripts=true agar pnpm tidak mengeksekusi/memvalidasi build script
+RUN pnpm install --frozen-lockfile --config.ignore-scripts=true
+
 COPY . .
 RUN pnpm run build
 
