@@ -7,7 +7,7 @@
     "dev": "rspack serve",
     "build:web": "rspack build",
     "cap:sync": "cap sync android",
-    "build": "rspack build && cap sync android",
+    "build": "pnpm run build:web && pnpm run cap:sync",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
