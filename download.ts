@@ -12,27 +12,45 @@ if (!fs.existsSync(CONFIG.outputFolder)) {
     fs.mkdirSync(CONFIG.outputFolder, { recursive: true });
 }
 
-function downloadAac(url: string): Promise<void> {
+function downloadAac(url: string, index: number): Promise<void> {
     return new Promise((resolve, reject) => {
-        const outputPath = path.join(CONFIG.outputFolder, CONFIG.outputTemplate);
+        // Membuat folder khusus per Playlist:
+        // Opsi A: Menggunakan nama Playlist otomatis dari YouTube
+        // Path: outputFolder / [Nama Playlist] / [Judul Video].aac
+        const dynamicOutputPath = path.join(
+            CONFIG.outputFolder,
+            '%(playlist_title,playlist)s',
+            CONFIG.outputTemplate
+        );
+
+        /* 
+        // Opsi B: Jika ingin paksa nama foldernya berdasarkan urutan URL (misal: Playlist_1, Playlist_2, dst)
+        // Gunakan baris ini jika nama playlist dari YouTube sering terlalu panjang / ada karakter aneh:
+        const folderName = `Playlist_${index + 1}`;
+        const dynamicOutputPath = path.join(
+            CONFIG.outputFolder,
+            folderName,
+            CONFIG.outputTemplate
+        );
+        */
 
         const args = [
             '--ffmpeg-location', ffmpegPath,
             '-x',
             '--audio-format', CONFIG.audioFormat,
             '--audio-quality', CONFIG.audioQuality,
-            '--no-overwrites', // <- yt-dlp akan otomatis mengabaikan (skip) jika file keluaran sudah ada
-            '-o', outputPath,
+            '--no-overwrites',
+            '--yes-playlist', // Memastikan yt-dlp memproses seluruh isi playlist
+            '-o', dynamicOutputPath,
             url,
         ];
 
-        console.log(`[START] Memproses URL: ${url}`);
+        console.log(`[START] Memproses Playlist ${index + 1}: ${url}`);
 
         const child = spawn(CONFIG.ytDlpBinary, args);
 
         child.stdout.on('data', (data: Buffer) => {
             const output = data.toString();
-            // Opsional: cetak log khusus jika yt-dlp mendeteksi file sudah ada
             if (output.includes('has already been downloaded')) {
                 console.log(`[SKIP] File sudah ada untuk URL: ${url}`);
             }
@@ -45,10 +63,10 @@ function downloadAac(url: string): Promise<void> {
 
         child.on('close', (code: number) => {
             if (code === 0) {
-                console.log(`[SELESAI] Sukses/Dilewati: ${url}`);
+                console.log(`[SELESAI] Selesai memproses Playlist ${index + 1}: ${url}`);
                 resolve();
             } else {
-                console.error(`[ERROR] Gagal: ${url} (Code: ${code})`);
+                console.error(`[ERROR] Gagal pada Playlist ${index + 1}: ${url} (Code: ${code})`);
                 reject(new Error(`yt-dlp exited with code ${code}`));
             }
         });
@@ -80,18 +98,22 @@ async function run() {
     let successCount = 0;
     let failedCount = 0;
 
-    const urlBatches = chunkArray(targetUrls, CONFIG.maxConcurrentDownloads);
+    // Memetakan URL beserta indeks urutannya
+    const indexedUrls = targetUrls.map((url, index) => ({ url, index }));
+    const urlBatches = chunkArray(indexedUrls, CONFIG.maxConcurrentDownloads);
 
-    console.log(`Total URL: ${targetUrls.length}`);
-    console.log(`Mode Sesi: Maksimal ${CONFIG.maxConcurrentDownloads} unduhan paralel per sesi (${urlBatches.length} sesi)\n`);
+    console.log(`Total Playlist: ${targetUrls.length}`);
+    console.log(`Mode Sesi: Maksimal ${CONFIG.maxConcurrentDownloads} playlist paralel per sesi (${urlBatches.length} sesi)\n`);
 
     for (let i = 0; i < urlBatches.length; i++) {
         const batch = urlBatches[i];
         console.log(`\n========================================`);
-        console.log(`>>> MENJALANKAN SESI ${i + 1} / ${urlBatches.length} (${batch.length} URL) <<<`);
+        console.log(`>>> MENJALANKAN SESI ${i + 1} / ${urlBatches.length} (${batch.length} Playlist) <<<`);
         console.log(`========================================\n`);
 
-        const results = await Promise.allSettled(batch.map((url) => downloadAac(url)));
+        const results = await Promise.allSettled(
+            batch.map((item) => downloadAac(item.url, item.index))
+        );
 
         results.forEach((res) => {
             if (res.status === 'fulfilled') {
