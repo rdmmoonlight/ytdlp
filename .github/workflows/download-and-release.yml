@@ -28,10 +28,12 @@ jobs:
         with:
           node-version: '20'
           cache: 'pnpm'
+          cache-dependency-path: original/pnpm-lock.yaml
 
       # 3. Install dependencies
       - name: Install dependencies
-        run: pnpm install
+        working-directory: ./original
+        run: pnpm install --frozen-lockfile
 
       # 4. Eksekusi script di dalam folder /original
       - name: Jalankan script download
@@ -45,9 +47,9 @@ jobs:
         run: |
           mkdir -p dist-release
           
-          # Ganti './original/hasil' dengan nama folder output dari script download.ts Anda
+          # Folder output script download.ts: ./original/download
           # -s 1900m memecah file zip secara otomatis jika ukurannya melebihi 1.9 GB
-          zip -r -s 1900m dist-release/arsip-unduhan.zip ./original/hasil
+          zip -r -s 1900m dist-release/arsip-unduhan.zip ./original/download
           
           ls -lh dist-release/
 
