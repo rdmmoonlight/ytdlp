@@ -17,7 +17,7 @@ function downloadAac(url: string): Promise<void> {
 
         const outputPath = path.join(
             CONFIG.outputFolder,
-            '%(album|%(uploader|%(channel|Unknown Source)s)s)s',
+            '%(album,uploader,channel|Unknown Source)s',
             CONFIG.outputTemplate
         );
 
