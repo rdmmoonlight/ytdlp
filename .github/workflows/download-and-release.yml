@@ -1,0 +1,62 @@
+name: Download dan Rilis ZIP
+
+on:
+  # Bisa dijalankan manual melalui tab Actions di GitHub
+  workflow_dispatch:
+
+# Wajib agar workflow memiliki izin membuat Release dan mengunggah file
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Mengambil kode repositori ke dalam mesin runner
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Setup pnpm & Node.js (sesuaikan versi Node jika diperlukan)
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: pnpm install
+
+      # 4. Eksekusi script di dalam folder /original
+      - name: Jalankan script download
+        working-directory: ./original
+        run: |
+          # Di pnpm, perintah eksekusi binary paket adalah 'pnpm exec' (setara npx)
+          pnpm exec tsx download.ts
+
+      # 5. Kompres hasil ke dalam file ZIP (otomatis dipecah per 1.9GB jika ukuran total > 2GB)
+      - name: Buat arsip ZIP (Split max 1.9GB)
+        run: |
+          mkdir -p dist-release
+          
+          # Ganti './original/hasil' dengan nama folder output dari script download.ts Anda
+          # -s 1900m memecah file zip secara otomatis jika ukurannya melebihi 1.9 GB
+          zip -r -s 1900m dist-release/arsip-unduhan.zip ./original/hasil
+          
+          ls -lh dist-release/
+
+      # 6. Buat tag dinamis berdasarkan tanggal & unggah ke GitHub Releases
+      - name: Upload ke GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="release-$(date +'%Y%m%d-%H%M%S')"
+          gh release create "$TAG_NAME" ./dist-release/* \
+            --title "Arsip Unduhan ($TAG_NAME)" \
+            --notes "Hasil unduhan otomatis dari workflow GitHub Actions."
