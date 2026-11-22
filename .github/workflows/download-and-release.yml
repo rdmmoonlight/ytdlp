@@ -30,6 +30,14 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: original/pnpm-lock.yaml
 
+      # 2b. Install yt-dlp (belum tersedia di runner) + aktifkan runtime JS Node untuk YouTube
+      - name: Install yt-dlp
+        run: |
+          python3 -m pip install -U "yt-dlp[default]"
+          mkdir -p ~/.config/yt-dlp
+          echo "--js-runtimes node" > ~/.config/yt-dlp/config
+          yt-dlp --version
+
       # 3. Install dependencies
       - name: Install dependencies
         working-directory: ./original
